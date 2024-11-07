@@ -118,7 +118,9 @@ if (params.fasta) {
   if (!params.sort_off) {
     include { sort_sequences } from './modules/sortsequences'
   }
-  include { remove_redundancy } from './modules/remove_redundancy'
+  if (!params.dedup_off) {
+    include { remove_redundancy } from './modules/remove_redundancy'
+  }
 
   include { cdhit } from './modules/cdhit'
   include { hdbscan } from './modules/hdbscan'
@@ -186,13 +188,17 @@ workflow preprocessing {
       } else {
         goiSorted = 'NO FILE'
       }
-      remove_redundancy(sort_sequences.out.sort_result)
+      ch_todedup = sort_sequences.out.sort_result
     } else {
-      remove_redundancy(sequences)
-      goiSorted = 'NO FILE'
+      ch_todedup = sequences
     }
-    
-    non_redundant_ch = remove_redundancy.out.nr_result
+    if (!params.dedup_off) {
+      remove_redundancy(sequences)
+      non_redundant_ch = remove_redundancy.out.nr_result
+    } else {
+      non_redundant_ch = ch_todedup
+    }
+   
     if (params.goi) {
       concat_goi(remove_redundancy.out.nr_result, goiSorted)
       non_redundant_ch = concat_goi.out.nr_result
